@@ -1,64 +1,40 @@
 from flask import Flask, request, jsonify
 import pandas as pd
+import os
 
 app = Flask(__name__)
 
-# โหลดข้อมูลจาก CSV (ตรวจสอบว่าไฟล์อยู่ที่ D:\ และตั้งชื่อว่า ASP Profile.csv)
+# โหลดข้อมูลจาก CSV
 df = pd.read_csv("ASP Profile.csv")
 
-# ฟังก์ชันค้นหาศูนย์บริการ
-def search_centers(keyword):
-    keyword = keyword.strip().lower()
-    results = []
+@app.route('/')
+def home():
+    return 'Dialogflow Webhook is running.'
 
-    for _, row in df.iterrows():
-        province = str(row['province_th']).lower()
-        amphur = str(row['amphur_th']).lower()
-        tambon = str(row.get('tambon_th', '')).lower()
-        name = str(row['name_th']).lower()
-
-        if any(k in name for k in keyword.split()) or keyword in province or keyword in amphur or keyword in tambon:
-            results.append({
-                "name": row['name_th'],
-                "address": row['address_th'],
-                "working_day": row['working_day'],
-                "working_time": row['working_time'],
-                "contact": row['contact_admin'],
-                "product": row.get('service_product_category', '-')
-            })
-
-    return results[:10]
-
-# Webhook สำหรับ Dialogflow
 @app.route('/webhook', methods=['POST'])
 def webhook():
     req = request.get_json()
-    user_input = req['queryResult']['queryText']
+    query = req.get('queryResult').get('queryText')
 
-    results = search_centers(user_input)
+    # ค้นหาจากจังหวัดหรืออำเภอที่ผู้ใช้ป้อน
+    result = df[df.apply(lambda row: query in str(row['Province']) or query in str(row['District']), axis=1)]
 
-    if not results:
-        return jsonify({"fulfillmentText": f"ไม่พบศูนย์บริการในพื้นที่ '{user_input}' ค่ะ"})
+    if result.empty:
+        response_text = f"ไม่พบข้อมูลศูนย์บริการสำหรับคำค้น '{query}'"
+    else:
+        lines = []
+        for _, row in result.iterrows():
+            line = f"""📍 {row['Service Center Name']}
+ที่อยู่: {row['Address']}
+เวลาทำการ: {row['Working Hour']}
+ติดต่อ: {row['Contact']}
+Service Product Category: {row['Service Product Category']}"""
+            lines.append(line)
+        response_text = "\n\n".join(lines)
 
-    reply_lines = []
-    for r in results:
-        reply = (
-            f"📍 *{r['name']}*\n"
-            f"📌 ที่อยู่: {r['address']}\n"
-            f"🕒 เวลาทำการ: {r['working_day']} {r['working_time']}\n"
-            f"📞 ติดต่อ: {r['contact']}\n"
-            f"🔧 Service Product Category: {r['product']}"
-        )
-        reply_lines.append(reply)
+    return jsonify({"fulfillmentText": response_text})
 
-    return jsonify({
-        "fulfillmentText": "\n\n".join(reply_lines)
-    })
-
-# Endpoint ทดสอบ
-@app.route('/')
-def home():
-    return "✅ Flask is running!"
-
-if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+# ✅ สำหรับ Render.com ต้องระบุ host และ port จาก environment
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
