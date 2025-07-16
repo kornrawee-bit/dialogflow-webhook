@@ -4,7 +4,7 @@ import pandas as pd
 app = Flask(__name__)
 
 # โหลดข้อมูลจาก CSV (ตรวจสอบว่าไฟล์อยู่ที่ D:\ และตั้งชื่อว่า ASP Profile.csv)
-df = pd.read_csv("D:/ASP Profile.csv", encoding='utf-8-sig')
+df = pd.read_csv("ASP Profile.csv")
 
 # ฟังก์ชันค้นหาศูนย์บริการ
 def search_centers(keyword):
