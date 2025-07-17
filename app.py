@@ -1,3 +1,7 @@
+from flask import Flask, request, jsonify
+
+app = Flask(__name__)  # ← ต้องอยู่ก่อนถึงจะใช้ @app.route ได้
+
 @app.route('/', methods=['POST'])
 def webhook():
     req = request.get_json(force=True)
@@ -15,3 +19,6 @@ def webhook():
     return jsonify({
         "fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"
     })
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=10000)
