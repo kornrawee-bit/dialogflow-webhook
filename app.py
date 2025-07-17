@@ -69,10 +69,11 @@ def webhook():
     # ✅ Intent: ค้นหาเบอร์โทรศัพท์จาก Usefulness Phone
     elif intent_name == "FindUsefulPhone":
         print("🔥 Intent matched: FindUsefulPhone")
+        print("📄 Preview Data:", json.dumps(data_phone[:3], ensure_ascii=False, indent=2))
 
         filtered = []
         for row in data_phone:
-            combined = f"{row.get('contact_name', '')} {row.get('telephone', '')} {row.get('remarks', '')}"
+            combined = " ".join([str(v) for v in row.values()])  # รวมค่าทุกคอลัมน์
             if keyword.lower() in combined.lower():
                 filtered.append(row)
 
