@@ -16,7 +16,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, s
 gc = gspread.authorize(creds)
 
 # ✅ Load merged Google Sheet
-sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")  # 🔁 เปลี่ยนชื่อ sheet ให้ตรง
+sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")
 data_all = sheet.get_all_records()
 
 @app.route("/", methods=["POST"])
@@ -54,7 +54,13 @@ def webhook():
             phone_main = row.get("contact_admin", "")
             phone_alt = row.get("telephone", "")
             phones = " / ".join(filter(None, [phone_main, phone_alt]))
-            hours = row.get("address_addition", "-")
+
+            # ✅ รวม working_day, working_time, address_addition
+            working_day = row.get("working_day", "")
+            working_time = row.get("working_time", "")
+            address_add = row.get("address_addition", "")
+            hours = " / ".join(filter(None, [working_day, working_time, address_add]))
+
             email = row.get("contact_email", "-")
             region = row.get("region_th", "-")
 
