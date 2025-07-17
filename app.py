@@ -15,12 +15,9 @@ scope = [
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 gc = gspread.authorize(creds)
 
-# ✅ Load Google Sheets
-sheet_asp = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")
-data_asp = sheet_asp.get_all_records()
-
-sheet_phone = gc.open("CC CHAT BOT 2025").worksheet("Usefulness Phone")
-data_phone = sheet_phone.get_all_records()
+# ✅ Load merged sheet (รวมข้อมูลทั้งหมด)
+sheet = gc.open("CC CHAT BOT 2025").worksheet("Merged Sheet")  # <== เปลี่ยนชื่อชีทตามจริง
+data_all = sheet.get_all_records()
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -44,7 +41,10 @@ def webhook():
         print("🔥 Intent matched: SearchServiceCenter")
 
         matched = []
-        for row in data_asp:
+        for row in data_all:
+            if row.get("category", "").lower() != "asp":
+                continue
+
             for key in ["name_th", "amphur_th", "province_th", "tambon_th", "service_area"]:
                 if keyword in str(row.get(key, "")):
                     matched.append(row)
@@ -66,22 +66,24 @@ def webhook():
 
         return jsonify({"fulfillmentText": reply})
 
-    # ✅ Intent: ค้นหาเบอร์โทรศัพท์จาก Usefulness Phone
+    # ✅ Intent: ค้นหาเบอร์โทรศัพท์
     elif intent_name == "FindUsefulPhone":
         print("🔥 Intent matched: FindUsefulPhone")
-        print("📄 Preview Data:", json.dumps(data_phone[:3], ensure_ascii=False, indent=2))
 
-        filtered = []
-        for row in data_phone:
-            combined = " ".join([str(v) for v in row.values()])  # รวมค่าทุกคอลัมน์
+        matched = []
+        for row in data_all:
+            if row.get("category", "").lower() != "phone":
+                continue
+
+            combined = " ".join([str(v) for v in row.values()])
             if keyword.lower() in combined.lower():
-                filtered.append(row)
+                matched.append(row)
 
-        if not filtered:
+        if not matched:
             return jsonify({"fulfillmentText": f"ไม่พบข้อมูลที่เกี่ยวข้องกับ “{keyword}” ค่ะ"})
 
         messages = []
-        for row in filtered[:10]:
+        for row in matched[:10]:
             name = row.get("contact_name", "-")
             phone = row.get("telephone", "-")
             remarks = row.get("remarks", "-")
@@ -89,9 +91,7 @@ def webhook():
 
         reply_text = "\n\n".join(messages)
 
-        return jsonify({
-            "fulfillmentText": reply_text
-        })
+        return jsonify({"fulfillmentText": reply_text})
 
     # ✅ Default fallback
     return jsonify({"fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"})
