@@ -8,8 +8,6 @@ app = Flask(__name__)
 
 # Set up Google Sheets connection
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
-# Load credentials from environment variable
 service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
 credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 gc = gspread.authorize(credentials)
@@ -23,11 +21,17 @@ def webhook():
     req = request.get_json(force=True)
     keyword = req["queryResult"]["queryText"].strip()
 
-    # Search every column
+    # Search across all columns
     results = []
     for row in data:
         if any(keyword.lower() in str(value).lower() for value in row.values()):
-            results.append(row)
+            # Append Contact Email and Region TH explicitly at the end
+            modified_row = dict(row)  # copy
+            contact_email = row.get("Contact Email", "")
+            region_th = row.get("Region TH", "")
+            modified_row["Region TH"] = region_th
+            modified_row["Contact Email"] = contact_email
+            results.append(modified_row)
 
     if results:
         response_text = json.dumps(results, ensure_ascii=False, indent=2)
