@@ -60,7 +60,7 @@ def webhook():
 
             messages.append(f"🏢 {name}\n📍 {address}\n📞 {phones}\n🕒 {hours}\n📧 {email}\n🗺 {region}")
         else:  # PHONE
-            name = row.get("contact_name", "-")
+            name = row.get("name_th", row.get("contact_name", "-"))
             phone = row.get("telephone", "-")
             remarks = row.get("remarks", "-")
             messages.append(f"📌 {name}\n📞 {phone}\n📝 {remarks}")
