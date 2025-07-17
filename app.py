@@ -16,7 +16,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, s
 gc = gspread.authorize(creds)
 
 # ✅ Load merged Google Sheet
-sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP+Phone")  # 🔁 เปลี่ยนชื่อ sheet ให้ตรง
+sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")  # 🔁 เปลี่ยนชื่อ sheet ให้ตรง
 data_all = sheet.get_all_records()
 
 @app.route("/", methods=["POST"])
