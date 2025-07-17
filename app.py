@@ -1,56 +1,36 @@
-from flask import Flask, request, jsonify
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-import json
-import os
-
-app = Flask(__name__)
-
-# ✅ Load credentials from environment variable
-service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
-
-scope = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
-]
-
-creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
-gc = gspread.authorize(creds)
-
-# ✅ Open the spreadsheet and specific sheet
-sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")
-data = sheet.get_all_records()
-
 @app.route("/", methods=["POST"])
 def webhook():
     req = request.get_json(force=True)
     print("====== Incoming from Dialogflow ======")
-    print(json.dumps(req, indent=2, ensure_ascii=False))
+    print(req)
 
     intent_name = req.get("queryResult", {}).get("intent", {}).get("displayName", "")
-    parameters = req.get("queryResult", {}).get("parameters", {})
-    province = parameters.get("geo-state", "")
+    query_text = req.get("queryResult", {}).get("queryText", "").strip()
 
     if intent_name == "SearchServiceCenter":
         print("🔥 Intent matched: SearchServiceCenter")
-        print("📍 Province received:", province)
+        
+        matches = []
+        for row in data[1:]:  # ข้าม header
+            if any(query_text in str(cell) for cell in row):
+                matches.append(row)
 
-        matched = [row for row in data if province in row.get("service_area", "")]
+        if not matches:
+            return jsonify({
+                "fulfillmentText": f"ไม่พบข้อมูลสำหรับ '{query_text}' ค่ะ"
+            })
 
-        if matched:
-            reply = ""
-            for m in matched[:3]:  # จำกัดที่ 3 รายการแรก
-                name = m.get("name_th", "-")
-                address = m.get("address_th", "-")
-                phone = m.get("telephone", "-")
-                hours = m.get("working_time", "-")
-                reply += f"🏢 {name}\n📍 {address}\n📞 {phone}\n🕒 {hours}\n\n"
-        else:
-            reply = f"ขออภัย ไม่พบศูนย์บริการในจังหวัด {province} ค่ะ"
+        # แสดงเฉพาะ 3 รายการแรกเพื่อความกระชับ
+        response_lines = []
+        for match in matches[:3]:
+            response_lines.append(
+                f"{match[3]}\nที่อยู่: {match[4]}\nติดต่อ: {match[5]}\nเวลาทำการ: {match[6]}"
+            )
 
-        return jsonify({"fulfillmentText": reply})
+        return jsonify({
+            "fulfillmentText": "\n\n".join(response_lines)
+        })
 
-    return jsonify({"fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"})
-
-if __name__ == "__main__":
-    app.run(debug=False, port=10000, host="0.0.0.0")
+    return jsonify({
+        "fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"
+    })
