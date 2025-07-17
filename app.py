@@ -64,16 +64,17 @@ def webhook():
             email = row.get("contact_email", "-")
             region = row.get("region_th", "-")
 
-            messages.append(f"🏢 {name}\n📍 {address}\n📞 {phones}\n🕒 {hours}\n📧 {email}\n🗺 {region}")
+            text = f"🏢 {name}\n📍 {address}\n📞 {phones}\n🕒 {hours}\n📧 {email}\n🗺 {region}"
         else:  # PHONE
             name = row.get("name_th", row.get("contact_name", "-"))
             phone = row.get("telephone", "-")
             remarks = row.get("remarks", "-")
-            messages.append(f"📌 {name}\n📞 {phone}\n📝 {remarks}")
+            text = f"📌 {name}\n📞 {phone}\n📝 {remarks}"
 
-    reply_text = "\n\n".join(messages)
+        # ✅ ใส่แต่ละข้อความเป็น bubble แยก
+        messages.append({"text": {"text": [text]}})
 
-    return jsonify({"fulfillmentText": reply_text})
+    return jsonify({"fulfillmentMessages": messages})
 
 if __name__ == "__main__":
     app.run(debug=False, port=10000, host="0.0.0.0")
