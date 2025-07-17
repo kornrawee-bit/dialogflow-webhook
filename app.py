@@ -29,33 +29,34 @@ def webhook():
 
     intent_name = req.get("queryResult", {}).get("intent", {}).get("displayName", "")
     parameters = req.get("queryResult", {}).get("parameters", {})
-    province = parameters.get("geo-state", "")
+    province = parameters.get("geo-state", "").strip()
 
     if intent_name == "SearchServiceCenter":
         print("🔥 Intent matched: SearchServiceCenter")
         print("📍 Province received:", province)
 
-        matched = [row for row in data if province in row.get("service_area", "")]
+        # ✅ ค้นหาในหลายคอลัมน์
+        search_columns = ["name_th", "amphur_th", "province_th", "service_area", "tambon_th"]
+        matched = []
+        for row in data:
+            for col in search_columns:
+                if province in str(row.get(col, "")):
+                    matched.append(row)
+                    break  # ไม่ต้องเช็คคอลัมน์อื่นถ้าเจอแล้ว
 
         if matched:
             reply = ""
-            for m in matched[:3]:  # จำกัดที่ 3 รายการแรก
+            for m in matched[:3]:  # จำกัดผลลัพธ์ 3 รายการ
                 name = m.get("name_th", "-")
                 address = m.get("address_th", "-")
                 phone = m.get("telephone", "-")
                 hours = m.get("working_time", "-")
-                email = m.get("contact_email", "-")       # ✅ เพิ่มอีเมล
-                region = m.get("region_th", "-")          # ✅ เพิ่มภูมิภาค
-                reply += (
-                    f"🏢 {name}\n"
-                    f"📍 {address}\n"
-                    f"📞 {phone}\n"
-                    f"🕒 {hours}\n"
-                    f"📧 {email}\n"
-                    f"🗺️ {region}\n\n"
-                )
+                emails = m.get("email", "-")
+                region = m.get("region_th", "-")
+
+                reply += f"🏢 {name}\n📍 {address}\n📞 {phone}\n🕒 {hours}\n📧 {emails}\n🌐 {region}\n\n"
         else:
-            reply = f"ขออภัย ไม่พบศูนย์บริการในจังหวัด {province} ค่ะ"
+            reply = f"ขออภัย ไม่พบศูนย์บริการที่เกี่ยวข้องกับคำว่า '{province}' ค่ะ"
 
         return jsonify({"fulfillmentText": reply})
 
