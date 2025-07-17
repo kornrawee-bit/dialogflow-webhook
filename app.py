@@ -15,8 +15,8 @@ scope = [
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 gc = gspread.authorize(creds)
 
-# ✅ Load merged sheet (รวมข้อมูลทั้งหมด)
-sheet = gc.open("CC CHAT BOT 2025").worksheet("Merged Sheet")  # <== เปลี่ยนชื่อชีทตามจริง
+# ✅ Load merged Google Sheet (แผ่นเดียว)
+sheet = gc.open("CC CHAT BOT 2025").sheet1  # ใช้ sheet แรกเลย ถ้าใช้ชื่อเฉพาะให้เปลี่ยนตรงนี้
 data_all = sheet.get_all_records()
 
 @app.route("/", methods=["POST"])
@@ -36,13 +36,13 @@ def webhook():
 
     print("🔍 Keyword:", keyword)
 
-    # ✅ Intent: ค้นหาศูนย์บริการ
+    # ✅ Intent: ค้นหาศูนย์บริการ (category = ASP)
     if intent_name == "SearchServiceCenter":
         print("🔥 Intent matched: SearchServiceCenter")
 
         matched = []
         for row in data_all:
-            if row.get("category", "").lower() != "asp":
+            if str(row.get("category", "")).strip().upper() != "ASP":
                 continue
 
             for key in ["name_th", "amphur_th", "province_th", "tambon_th", "service_area"]:
@@ -66,13 +66,13 @@ def webhook():
 
         return jsonify({"fulfillmentText": reply})
 
-    # ✅ Intent: ค้นหาเบอร์โทรศัพท์
+    # ✅ Intent: ค้นหาเบอร์โทรศัพท์ (category = PHONE)
     elif intent_name == "FindUsefulPhone":
         print("🔥 Intent matched: FindUsefulPhone")
 
         matched = []
         for row in data_all:
-            if row.get("category", "").lower() != "phone":
+            if str(row.get("category", "")).strip().upper() != "PHONE":
                 continue
 
             combined = " ".join([str(v) for v in row.values()])
