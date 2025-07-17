@@ -15,9 +15,9 @@ scope = [
 creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
 gc = gspread.authorize(creds)
 
-# ✅ Load Merged Sheet
-sheet = gc.open("CC CHAT BOT 2025").worksheet("Merged Sheet")
-data_merged = sheet.get_all_records()
+# ✅ Load merged Google Sheet
+sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP+Phone")  # 🔁 เปลี่ยนชื่อ sheet ให้ตรง
+data_all = sheet.get_all_records()
 
 @app.route("/", methods=["POST"])
 def webhook():
@@ -28,54 +28,46 @@ def webhook():
     parameters = req.get("queryResult", {}).get("parameters", {})
 
     keyword = (
-        parameters.get("geo-city") or
-        parameters.get("geo-state") or
+        parameters.get("geo-city") or 
+        parameters.get("geo-state") or 
         req.get("queryResult", {}).get("queryText", "")
     ).strip()
 
     print("🔍 Keyword:", keyword)
 
-    # ✅ เลือกประเภทข้อมูลตาม intent
-    category_filter = "ASP" if intent_name == "SearchServiceCenter" else \
-                      "PHONE" if intent_name == "FindUsefulPhone" else None
-
-    filtered = [
-        row for row in data_merged
-        if str(row.get("category", "")).strip().upper() == category_filter
-        and any(keyword.lower() in str(row.get(k, "")).lower() for k in row)
-    ]
+    filtered = []
+    for row in data_all:
+        combined = " ".join([str(v) for v in row.values()])
+        if keyword.lower() in combined.lower():
+            filtered.append(row)
 
     if not filtered:
         return jsonify({"fulfillmentText": f"ไม่พบข้อมูลที่เกี่ยวข้องกับ “{keyword}” ค่ะ"})
 
     messages = []
     for row in filtered[:10]:
-        if category_filter == "ASP":
-            name = row.get("name_th", "-")
+        category = row.get("category", "").strip().lower()
+
+        if category == "asp":
+            name = row.get("name_th", row.get("contact_name", "-"))
             address = row.get("address_th", "-")
-            region = row.get("region_th", "-")
+            phone_main = row.get("contact_admin", "")
+            phone_alt = row.get("telephone", "")
+            phones = " / ".join(filter(None, [phone_main, phone_alt]))
             hours = row.get("address_addition", "-")
             email = row.get("contact_email", "-")
+            region = row.get("region_th", "-")
 
-            # ✅ รวม contact_admin และ telephone
-            phone_admin = row.get("contact_admin", "")
-            phone_other = row.get("telephone", "")
-            phone = " / ".join(filter(None, [phone_admin, phone_other])) or "-"
-
-            message = f"🏢 {name}\n📍 {address}\n📞 {phone}\n🕒 {hours}\n📧 {email}\n🗺 {region}"
+            messages.append(f"🏢 {name}\n📍 {address}\n📞 {phones}\n🕒 {hours}\n📧 {email}\n🗺 {region}")
         else:  # PHONE
-            name = row.get("contact_name") or row.get("name") or "-"
+            name = row.get("contact_name", "-")
             phone = row.get("telephone", "-")
             remarks = row.get("remarks", "-")
-            message = f"📌 {name}\n📞 {phone}\n📝 {remarks}"
-
-        messages.append(message)
+            messages.append(f"📌 {name}\n📞 {phone}\n📝 {remarks}")
 
     reply_text = "\n\n".join(messages)
 
-    return jsonify({
-        "fulfillmentText": reply_text
-    })
+    return jsonify({"fulfillmentText": reply_text})
 
 if __name__ == "__main__":
     app.run(debug=False, port=10000, host="0.0.0.0")
