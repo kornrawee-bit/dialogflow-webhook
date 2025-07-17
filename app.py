@@ -1,36 +1,42 @@
+import os
+import json
+from flask import Flask, request, jsonify
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
+
+app = Flask(__name__)
+
+# Set up Google Sheets connection
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+# Load credentials from environment variable
+service_account_info = json.loads(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
+credentials = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
+gc = gspread.authorize(credentials)
+
+# Open the Google Sheet and worksheet
+sheet = gc.open("CC CHAT BOT 2025").worksheet("ASP Profile")
+data = sheet.get_all_records()
+
 @app.route("/", methods=["POST"])
 def webhook():
     req = request.get_json(force=True)
-    print("====== Incoming from Dialogflow ======")
-    print(req)
+    keyword = req["queryResult"]["queryText"].strip()
 
-    intent_name = req.get("queryResult", {}).get("intent", {}).get("displayName", "")
-    query_text = req.get("queryResult", {}).get("queryText", "").strip()
+    # Search every column
+    results = []
+    for row in data:
+        if any(keyword.lower() in str(value).lower() for value in row.values()):
+            results.append(row)
 
-    if intent_name == "SearchServiceCenter":
-        print("🔥 Intent matched: SearchServiceCenter")
-        
-        matches = []
-        for row in data[1:]:  # ข้าม header
-            if any(query_text in str(cell) for cell in row):
-                matches.append(row)
-
-        if not matches:
-            return jsonify({
-                "fulfillmentText": f"ไม่พบข้อมูลสำหรับ '{query_text}' ค่ะ"
-            })
-
-        # แสดงเฉพาะ 3 รายการแรกเพื่อความกระชับ
-        response_lines = []
-        for match in matches[:3]:
-            response_lines.append(
-                f"{match[3]}\nที่อยู่: {match[4]}\nติดต่อ: {match[5]}\nเวลาทำการ: {match[6]}"
-            )
-
-        return jsonify({
-            "fulfillmentText": "\n\n".join(response_lines)
-        })
+    if results:
+        response_text = json.dumps(results, ensure_ascii=False, indent=2)
+    else:
+        response_text = "ไม่พบข้อมูลที่เกี่ยวข้อง"
 
     return jsonify({
-        "fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"
+        "fulfillmentText": response_text
     })
+
+if __name__ == "__main__":
+    app.run()
