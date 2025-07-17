@@ -4,13 +4,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 app = Flask(__name__)
 
-# กำหนดสิทธิ์การเข้าถึง Google Sheets
+# เชื่อมต่อ Google Sheets
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 creds = ServiceAccountCredentials.from_json_keyfile_name("service-account.json", scope)
 client = gspread.authorize(creds)
 
-# เปิดไฟล์ Google Sheet และเลือกแผ่นงาน
-sheet = client.open("ชื่อไฟล์ Google Sheet ของคุณ").sheet1
+# เปิด Google Sheet: ชื่อไฟล์คือ CC CHAT BOT 2025
+sheet = client.open("CC CHAT BOT 2025").sheet1
 
 @app.route('/', methods=['POST'])
 def webhook():
@@ -19,27 +19,23 @@ def webhook():
     parameters = req.get("queryResult", {}).get("parameters", {})
 
     if intent_name == "SearchServiceCenter":
-        province = parameters.get("geo-state")  # ได้ค่า เช่น "Chiang Mai"
+        province = parameters.get("geo-state")  # เช่น "Chiang Mai"
         if not province:
             return jsonify({"fulfillmentText": "กรุณาระบุจังหวัดเพื่อค้นหาศูนย์บริการค่ะ"})
 
-        # อ่านข้อมูลทั้งหมดในชีต
+        # อ่านข้อมูลทั้งหมดจาก Sheet
         records = sheet.get_all_records()
-
-        # ค้นหาศูนย์บริการตาม province_th
         matched = [r for r in records if r["province_th"].strip() == province.strip()]
 
         if not matched:
             return jsonify({"fulfillmentText": f"ไม่พบศูนย์บริการในจังหวัด {province} ค่ะ"})
 
-        # สร้างข้อความสรุป (แนะนำแสดง 2-3 รายการแรก)
+        # ตอบกลับแบบย่อ 3 รายการแรก
         reply = ""
-        for r in matched[:3]:  # จำกัดแค่ 3 รายการ
+        for r in matched[:3]:
             reply += f"🏢 {r['name_th']}\n📍 {r['address_th']}\n📞 {r['telephone']}\n🕒 {r['working_day']} {r['working_time']}\n\n"
 
-        return jsonify({
-            "fulfillmentText": reply.strip()
-        })
+        return jsonify({"fulfillmentText": reply.strip()})
 
     return jsonify({"fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"})
 
