@@ -56,7 +56,7 @@ def webhook():
                 name = m.get("name_th", "-")
                 address = m.get("address_th", "-")
                 phone = m.get("contact_admin", "-")
-                hours = m.get("address_addition", "-")  # หรือใช้ working_time
+                hours = m.get("address_addition", "-")
                 region = m.get("region_th", "-")
                 email = m.get("contact_email", "-")
 
@@ -66,22 +66,63 @@ def webhook():
 
         return jsonify({"fulfillmentText": reply})
 
-    # ✅ Intent: แสดงเบอร์โทรศัพท์สายด่วน/ที่มีประโยชน์
+    # ✅ Intent: แสดงเบอร์โทรศัพท์ที่เป็นประโยชน์ พร้อมทั้ง text + flex
     elif intent_name == "FindUsefulPhone":
         print("🔥 Intent matched: FindUsefulPhone")
 
         messages = []
-        for row in data_phone:
+        bubble_list = []
+
+        for row in data_phone[:10]:  # จำกัด 10 รายการ
             name = row.get("Contact Name", "-")
             phone = row.get("Telephone", "-")
             remarks = row.get("Remarks", "-")
-            message = f"📌 {name}\n📞 {phone}\n📝 {remarks}"
-            messages.append(message)
 
-        reply = "\n\n".join(messages[:10]) if messages else "ไม่พบข้อมูลเบอร์ติดต่อที่ต้องการค่ะ"
+            # ➤ เพิ่มข้อความธรรมดา
+            msg_text = f"📌 {name}\n📞 {phone}\n📝 {remarks}"
+            messages.append(msg_text)
 
-        return jsonify({"fulfillmentText": reply})
+            # ➤ เพิ่ม bubble สำหรับ Flex Message
+            bubble = {
+                "type": "bubble",
+                "body": {
+                    "type": "box",
+                    "layout": "vertical",
+                    "spacing": "sm",
+                    "contents": [
+                        {"type": "text", "text": name, "weight": "bold", "size": "lg", "wrap": True},
+                        {"type": "text", "text": f"📞 {phone}", "wrap": True},
+                        {"type": "text", "text": f"📝 {remarks}", "wrap": True, "color": "#888888"}
+                    ]
+                }
+            }
+            bubble_list.append(bubble)
 
+        reply_text = "\n\n".join(messages) if messages else "ไม่พบข้อมูลเบอร์ติดต่อที่ต้องการค่ะ"
+
+        return jsonify({
+            "fulfillmentMessages": [
+                {
+                    "text": {
+                        "text": [reply_text]
+                    }
+                },
+                {
+                    "payload": {
+                        "line": {
+                            "type": "flex",
+                            "altText": "เบอร์ติดต่อที่เป็นประโยชน์",
+                            "contents": {
+                                "type": "carousel",
+                                "contents": bubble_list
+                            }
+                        }
+                    }
+                }
+            ]
+        })
+
+    # ✅ Default fallback
     return jsonify({"fulfillmentText": "ยังไม่มีคำตอบสำหรับ intent นี้ครับ"})
 
 if __name__ == "__main__":
